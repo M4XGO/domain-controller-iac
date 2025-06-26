@@ -1,0 +1,58 @@
+# Terraform Variables - Example Configuration
+# Copiez ce fichier vers terraform.tfvars et adaptez les valeurs
+
+# === CONFIGURATION GENERALE ===
+environment = "dev"
+project_name = "domain-controller"
+region = "eu-west-1"
+
+# === RESEAU ===
+vpc_cidr = "10.0.0.0/16"
+availability_zones = ["eu-west-1a", "eu-west-1b"]
+
+# Subnets configuration
+public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.10.0/24", "10.0.20.0/24"]
+
+# === ACTIVE DIRECTORY ===
+# Domain configuration
+domain_name = "corp.local"
+domain_netbios_name = "CORP"
+safe_mode_password = "ChangeMe123!"  # ⚠️ À changer absolument !
+
+# EC2 Instance configuration
+instance_type = "t3.medium"
+ami_id = "ami-0c02fb55956c7d316"  # Windows Server 2022 Base eu-west-1
+
+# Storage configuration
+root_volume_size = 50
+data_volume_size = 100
+logs_volume_size = 50
+
+# === VPN CONFIGURATION ===
+vpn_type = "openvpn"
+vpn_port = 1194
+
+# Client networks (adaptez à votre réseau local)
+client_networks = [
+  "192.168.1.0/24",    # ⚠️ Remplacez par votre réseau VMware local
+  "192.168.100.0/24"   # Réseau VPN clients
+]
+
+# === MONITORING ===
+enable_cloudwatch = true
+enable_ssm = true
+enable_backup = true
+
+# Retention periods (jours)
+log_retention_days = 30
+backup_retention_days = 7
+
+# === TAGS ===
+common_tags = {
+  Project     = "Domain Controller IAC"
+  Environment = "dev"
+  Owner       = "votre-nom"           # ⚠️ À personnaliser
+  Terraform   = "true"
+  CostCenter  = "IT-Infrastructure"   # ⚠️ À personnaliser
+} 

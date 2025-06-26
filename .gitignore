@@ -1,0 +1,101 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Packer
+packer_cache/
+*.box
+
+# Ansible
+*.retry
+.vault_pass.txt
+host_vars/
+group_vars/*/vault.yml
+
+# AWS
+.aws/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Secrets
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# VPN Client files
+.vpn-client/
+*.ovpn
+
+# Backup files
+*.backup
+*.bak
+backup/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Node modules (if any)
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Archives
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+
+# Certificate files
+*.p7b
+*.pfx
+
+# Variables sensibles - À ne jamais committer
+.config/secrets/
+.config/variables/terraform.tfvars
+.config/variables/packer.pkrvars.hcl 

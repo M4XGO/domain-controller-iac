@@ -1,0 +1,214 @@
+---
+# SSM Document for Domain Controller Configuration - Free Tier Optimized
+schemaVersion: "2.2"
+description: "Configure Active Directory Domain Controller (Free Tier Optimized)"
+parameters:
+  DomainName:
+    type: String
+    description: "The fully qualified domain name (FQDN) for the domain"
+    allowedPattern: "^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+  SafeModePassword:
+    type: String
+    description: "The password for Directory Services Restore Mode"
+    noEcho: true
+  NetBIOSName:
+    type: String
+    description: "The NetBIOS name for the domain"
+    allowedPattern: "^[a-zA-Z0-9]{1,15}$"
+  DatabasePath:
+    type: String
+    description: "Path for the Active Directory database"
+    default: "C:\\NTDS"
+  LogPath:
+    type: String
+    description: "Path for the Active Directory logs"
+    default: "C:\\Logs"
+  SysvolPath:
+    type: String
+    description: "Path for the SYSVOL folder"
+    default: "C:\\SYSVOL"
+
+mainSteps:
+  - action: "aws:runPowerShellScript"
+    name: "ConfigureDomainController"
+    inputs:
+      timeoutSeconds: "3600"
+      runCommand:
+        - |
+          # Domain Controller Configuration Script
+          # Free Tier Optimized - Single Volume Setup
+          
+          Start-Transcript -Path "C:\ssm-domain-config.log" -Append
+          
+          Write-Host "=== Starting Domain Controller Configuration ===" -ForegroundColor Green
+          Write-Host "Domain: {{ DomainName }}" -ForegroundColor Cyan
+          Write-Host "NetBIOS: {{ NetBIOSName }}" -ForegroundColor Cyan
+          
+          try {
+              # Verify AD DS is installed
+              $ADFeature = Get-WindowsFeature -Name AD-Domain-Services
+              if ($ADFeature.InstallState -ne "Installed") {
+                  Write-Host "Installing AD-Domain-Services..." -ForegroundColor Yellow
+                  Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+              }
+              
+              # Check if already a domain controller
+              try {
+                  $Domain = Get-ADDomain -ErrorAction Stop
+                  Write-Host "Server is already a domain controller for domain: $($Domain.DNSRoot)" -ForegroundColor Green
+                  exit 0
+              }
+              catch {
+                  Write-Host "Server is not yet a domain controller. Proceeding with promotion..." -ForegroundColor Yellow
+              }
+              
+              # Create necessary directories (Free Tier: all on C: drive)
+              $Directories = @("{{ DatabasePath }}", "{{ LogPath }}", "{{ SysvolPath }}")
+              foreach ($Dir in $Directories) {
+                  if (!(Test-Path $Dir)) {
+                      New-Item -Path $Dir -ItemType Directory -Force
+                      Write-Host "Created directory: $Dir" -ForegroundColor Green
+                  }
+              }
+              
+              # Convert safe mode password to secure string
+              $SecurePassword = ConvertTo-SecureString "{{ SafeModePassword }}" -AsPlainText -Force
+              
+              # Configure domain controller (Free Tier optimized)
+              Write-Host "Promoting server to Domain Controller..." -ForegroundColor Green
+              
+              $DCPromoParams = @{
+                  DomainName                    = "{{ DomainName }}"
+                  DomainNetbiosName            = "{{ NetBIOSName }}"
+                  DatabasePath                 = "{{ DatabasePath }}"
+                  LogPath                      = "{{ LogPath }}"
+                  SysvolPath                   = "{{ SysvolPath }}"
+                  SafeModeAdministratorPassword = $SecurePassword
+                  InstallDns                   = $true
+                  CreateDnsDelegation          = $false
+                  Force                        = $true
+                  NoRebootOnCompletion         = $true
+              }
+              
+              Install-ADDSForest @DCPromoParams
+              
+              Write-Host "Domain Controller promotion completed successfully!" -ForegroundColor Green
+              
+              # Post-promotion configuration
+              Write-Host "=== Post-Promotion Configuration ===" -ForegroundColor Green
+              
+              # Wait for AD services to be available
+              $timeout = 300  # 5 minutes
+              $timer = 0
+              do {
+                  Start-Sleep -Seconds 10
+                  $timer += 10
+                  try {
+                      Get-ADDomain -ErrorAction Stop | Out-Null
+                      $ADReady = $true
+                      Write-Host "Active Directory is ready!" -ForegroundColor Green
+                  }
+                  catch {
+                      $ADReady = $false
+                      Write-Host "Waiting for Active Directory to be ready... ($timer/$timeout seconds)" -ForegroundColor Yellow
+                  }
+              } while (-not $ADReady -and $timer -lt $timeout)
+              
+              if ($ADReady) {
+                  # Configure DNS forwarders for internet resolution
+                  Write-Host "Configuring DNS forwarders..." -ForegroundColor Green
+                  try {
+                      Add-DnsServerForwarder -IPAddress "8.8.8.8", "8.8.4.4" -ErrorAction SilentlyContinue
+                      Write-Host "DNS forwarders configured" -ForegroundColor Green
+                  }
+                  catch {
+                      Write-Warning "Could not configure DNS forwarders: $($_.Exception.Message)"
+                  }
+                  
+                  # Create basic OU structure
+                  Write-Host "Creating basic OU structure..." -ForegroundColor Green
+                  $DomainDN = (Get-ADDomain).DistinguishedName
+                  
+                  $OUs = @(
+                      @{Name = "Servers"; Description = "Server accounts"},
+                      @{Name = "Workstations"; Description = "Workstation accounts"},
+                      @{Name = "Users"; Description = "User accounts"},
+                      @{Name = "Groups"; Description = "Security and distribution groups"},
+                      @{Name = "Service Accounts"; Description = "Service accounts"}
+                  )
+                  
+                  foreach ($OU in $OUs) {
+                      try {
+                          if (!(Get-ADOrganizationalUnit -Filter "Name -eq '$($OU.Name)'" -SearchBase $DomainDN -ErrorAction SilentlyContinue)) {
+                              New-ADOrganizationalUnit -Name $OU.Name -Path $DomainDN -Description $OU.Description
+                              Write-Host "Created OU: $($OU.Name)" -ForegroundColor Green
+                          }
+                      }
+                      catch {
+                          Write-Warning "Could not create OU $($OU.Name): $($_.Exception.Message)"
+                      }
+                  }
+                  
+                  # Configure domain password policy (basic security)
+                  Write-Host "Configuring domain password policy..." -ForegroundColor Green
+                  try {
+                      Set-ADDefaultDomainPasswordPolicy `
+                          -Identity $DomainDN `
+                          -MinPasswordLength 8 `
+                          -PasswordHistoryCount 12 `
+                          -MaxPasswordAge (New-TimeSpan -Days 90) `
+                          -MinPasswordAge (New-TimeSpan -Days 1) `
+                          -LockoutDuration (New-TimeSpan -Minutes 30) `
+                          -LockoutObservationWindow (New-TimeSpan -Minutes 30) `
+                          -LockoutThreshold 5
+                      
+                      Write-Host "Password policy configured" -ForegroundColor Green
+                  }
+                  catch {
+                      Write-Warning "Could not configure password policy: $($_.Exception.Message)"
+                  }
+                  
+                  # Create basic security groups
+                  Write-Host "Creating basic security groups..." -ForegroundColor Green
+                  $GroupsOU = "OU=Groups,$DomainDN"
+                  
+                  $Groups = @(
+                      @{Name = "Domain Servers"; Scope = "DomainLocal"; Description = "Domain member servers"},
+                      @{Name = "Workstation Admins"; Scope = "DomainLocal"; Description = "Local administrators on workstations"},
+                      @{Name = "Help Desk"; Scope = "Global"; Description = "Help desk personnel"}
+                  )
+                  
+                  foreach ($Group in $Groups) {
+                      try {
+                          if (!(Get-ADGroup -Filter "Name -eq '$($Group.Name)'" -ErrorAction SilentlyContinue)) {
+                              New-ADGroup -Name $Group.Name -GroupScope $Group.Scope -GroupCategory Security -Path $GroupsOU -Description $Group.Description
+                              Write-Host "Created group: $($Group.Name)" -ForegroundColor Green
+                          }
+                      }
+                      catch {
+                          Write-Warning "Could not create group $($Group.Name): $($_.Exception.Message)"
+                      }
+                  }
+                  
+                  Write-Host "=== Domain Controller Configuration Completed Successfully ===" -ForegroundColor Green
+                  
+                  # Schedule reboot for changes to take effect
+                  Write-Host "Scheduling reboot in 2 minutes to complete configuration..." -ForegroundColor Yellow
+                  shutdown.exe /r /t 120 /c "Domain Controller configuration complete, rebooting"
+                  
+              } else {
+                  Write-Error "Active Directory did not become ready within the timeout period"
+                  exit 1
+              }
+              
+          }
+          catch {
+              Write-Error "Domain Controller configuration failed: $($_.Exception.Message)"
+              Write-Error $_.ScriptStackTrace
+              exit 1
+          }
+          finally {
+              Stop-Transcript
+          }
+          
+          Write-Host "Domain Controller configuration script completed successfully!" -ForegroundColor Green 

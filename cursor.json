@@ -1,0 +1,34 @@
+{
+  "rules": [
+    {
+      "name": "Structure conventionnée DevOps",
+      "pattern": ".*",
+      "comment": "Tous les fichiers liés à l'infra cloud doivent être rangés dans `.cloud/<techno>/` (ex: `.cloud/terraform`, `.cloud/ansible`, etc.)"
+    },
+    {
+      "name": "Modularisation Terraform",
+      "pattern": ".cloud/terraform/.*",
+      "comment": "Découpe l'infrastructure en modules réutilisables dans `.infra/modules/`, les appels se font via des `main.tf` dans `.cloud/terraform/environments/<env>`"
+    },
+    {
+      "name": "Séparation des secrets",
+      "pattern": ".config/variables/.*",
+      "comment": "Les secrets et variables sensibles doivent être externalisés, idéalement chiffrés ou chargés dynamiquement via `git-crypt`, `sops`, ou `vault`"
+    },
+    {
+      "name": "Usage d'un Makefile",
+      "pattern": ".*",
+      "comment": "Crée un `Makefile` pour centraliser les commandes comme `init`, `deploy`, `destroy`, et `connect` afin de simplifier l'usage pour tout contributeur"
+    },
+    {
+      "name": "Documentation obligatoire",
+      "pattern": "docs/.*",
+      "comment": "Chaque dossier Terraform, Ansible ou Packer doit avoir une documentation `README.md` pour décrire son rôle, ses variables, outputs, etc."
+    },
+    {
+      "name": "mcp context7 activé",
+      "pattern": ".*",
+      "comment": "Active le contexte `mcp context7` dans Cursor pour suivre les évolutions de Terraform, Ansible, Packer et bonnes pratiques DevOps"
+    }
+  ]
+}
