@@ -109,13 +109,13 @@ resource "aws_security_group" "domain_controller" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  # DNS
+  # DNS (ouvert pour clients locaux)
   ingress {
     description = "DNS TCP"
     from_port   = 53
     to_port     = 53
     protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
+    cidr_blocks = ["0.0.0.0/0"]  # Pour clients locaux
   }
 
   ingress {
@@ -123,7 +123,7 @@ resource "aws_security_group" "domain_controller" {
     from_port   = 53
     to_port     = 53
     protocol    = "udp"
-    cidr_blocks = [var.vpc_cidr]
+    cidr_blocks = ["0.0.0.0/0"]  # Pour clients locaux
   }
 
   # Active Directory basics
