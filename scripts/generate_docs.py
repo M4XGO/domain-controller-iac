@@ -182,21 +182,37 @@ class DocumentationGenerator:
         """Publish documentation to Confluence"""
         if not all([self.confluence_base_url, self.confluence_username, 
                    self.confluence_token, self.confluence_space]):
-            print("Confluence configuration missing")
+            print("Confluence configuration missing. Required environment variables:")
+            print(f"- CONFLUENCE_BASE_URL: {'✓' if self.confluence_base_url else '✗'}")
+            print(f"- CONFLUENCE_USERNAME: {'✓' if self.confluence_username else '✗'}")
+            print(f"- CONFLUENCE_API_TOKEN: {'✓' if self.confluence_token else '✗'}")
+            print(f"- CONFLUENCE_SPACE_KEY: {'✓' if self.confluence_space else '✗'}")
             return False
         
         confluence_content = self.convert_to_confluence_format(content)
         
+        # Normalize base URL (remove trailing slash if present)
+        base_url = self.confluence_base_url.rstrip('/')
+        
         # Check if page already exists
-        search_url = f"{self.confluence_base_url}/rest/api/content"
+        search_url = f"{base_url}/rest/api/content"
         search_params = {
             'title': title,
             'spaceKey': self.confluence_space,
             'expand': 'version'
         }
         
+        print(f"Attempting to connect to Confluence at: {search_url}")
+        print(f"Space key: {self.confluence_space}")
+        print(f"Page title: {title}")
+        
         auth = (self.confluence_username, self.confluence_token)
-        search_response = requests.get(search_url, params=search_params, auth=auth)
+        
+        try:
+            search_response = requests.get(search_url, params=search_params, auth=auth, timeout=30)
+        except requests.exceptions.RequestException as e:
+            print(f"Network error connecting to Confluence: {e}")
+            return False
         
         if search_response.status_code == 200:
             results = search_response.json().get('results', [])
@@ -220,7 +236,7 @@ class DocumentationGenerator:
                     'version': {'number': current_version + 1}
                 }
                 
-                update_url = f"{self.confluence_base_url}/rest/api/content/{page_id}"
+                update_url = f"{base_url}/rest/api/content/{page_id}"
                 response = requests.put(update_url, json=update_data, auth=auth)
             else:
                 # Create new page
@@ -245,7 +261,20 @@ class DocumentationGenerator:
                 print(f"Failed to publish to Confluence: {response.status_code} - {response.text}")
                 return False
         else:
-            print(f"Failed to search Confluence: {search_response.status_code}")
+            print(f"Failed to search Confluence: {search_response.status_code} - {search_response.text}")
+            if search_response.status_code == 404:
+                print("❌ 404 Error - This usually means:")
+                print("  1. The Confluence base URL is incorrect")
+                print("  2. The space key doesn't exist")
+                print("  3. The REST API path is wrong")
+                print("  4. Your Confluence instance doesn't support this API version")
+                print(f"  💡 Tip: Verify your base URL format. It should be like:")
+                print(f"     - https://yourcompany.atlassian.net/wiki")
+                print(f"     - https://confluence.yourcompany.com")
+            elif search_response.status_code == 401:
+                print("❌ 401 Error - Authentication failed. Check your username and API token.")
+            elif search_response.status_code == 403:
+                print("❌ 403 Error - Permission denied. Check if you have access to the space.")
             return False
 
     def generate_and_publish(self):
