@@ -3,7 +3,7 @@ import json
 import requests
 from pathlib import Path
 import anthropic
-import openai
+import google.generativeai as genai
 from typing import Dict, List, Any
 import yaml
 import markdown
@@ -21,14 +21,16 @@ class DocumentationGenerator:
             print(f"Warning: Failed to initialize Anthropic client: {e}")
             self.anthropic_client = None
         
-        # Initialize OpenAI client
+        # Initialize Google Gemini client
         try:
-            self.openai_client = openai.OpenAI(
-                api_key=os.getenv('OPENAI_API_KEY')
-            ) if os.getenv('OPENAI_API_KEY') else None
+            if os.getenv('GEMINI_API_KEY'):
+                genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+                self.gemini_client = genai.GenerativeModel('gemini-1.5-flash')
+            else:
+                self.gemini_client = None
         except Exception as e:
-            print(f"Warning: Failed to initialize OpenAI client: {e}")
-            self.openai_client = None
+            print(f"Warning: Failed to initialize Gemini client: {e}")
+            self.gemini_client = None
         
         self.confluence_base_url = os.getenv('CONFLUENCE_BASE_URL')
         self.confluence_username = os.getenv('CONFLUENCE_USERNAME')
@@ -171,13 +173,9 @@ class DocumentationGenerator:
                     messages=[{"role": "user", "content": prompt}]
                 )
                 return response.content[0].text
-            elif self.openai_client:
-                response = self.openai_client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=4000
-                )
-                return response.choices[0].message.content
+            elif self.gemini_client:
+                response = self.gemini_client.generate_content(prompt)
+                return response.text
             else:
                 # Generate basic documentation without LLM if no client is available
                 basic_docs = self.generate_basic_documentation(files_data)
