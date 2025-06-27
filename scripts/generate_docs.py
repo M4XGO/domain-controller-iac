@@ -114,25 +114,50 @@ class DocumentationGenerator:
     def analyze_with_llm(self, files_data: Dict[str, Any]) -> str:
         """Analyze code using LLM and generate documentation"""
         
-        # Prepare context for LLM
-        context = "# Codebase Analysis\n\n"
-        for file_path, file_info in files_data.items():
-            if file_info['size'] < 10000:  # Limit file size for context
-                context += f"## {file_path}\n```{file_info['extension'][1:]}\n{file_info['content']}\n```\n\n"
+        # Prepare context for LLM - prioritize infrastructure files
+        context = "# Infrastructure as Code Analysis\n\n"
+        
+        # Priority order for file types
+        priority_extensions = ['.tf', '.yaml', '.yml', '.py', '.md']
+        
+        # Sort files by priority and size
+        sorted_files = []
+        for ext in priority_extensions:
+            matching_files = [(path, info) for path, info in files_data.items() 
+                            if info['extension'] == ext and info['size'] < 15000]
+            sorted_files.extend(sorted(matching_files, key=lambda x: x[1]['size']))
+        
+        # Add remaining files
+        remaining_files = [(path, info) for path, info in files_data.items() 
+                         if (path, info) not in sorted_files and info['size'] < 8000]
+        sorted_files.extend(remaining_files)
+        
+        for file_path, file_info in sorted_files[:20]:  # Limit to 20 most important files
+            file_ext = file_info['extension'][1:] if file_info['extension'] else 'text'
+            context += f"## {file_path}\n```{file_ext}\n{file_info['content']}\n```\n\n"
         
         prompt = f"""
-        Analyze this codebase and generate comprehensive documentation. Focus on:
+        Analyze this Infrastructure as Code (IaC) codebase and generate comprehensive documentation. Focus on:
         
-        1. **Architecture Overview**: High-level system architecture and design patterns
-        2. **Component Analysis**: Individual components, their responsibilities, and interactions
-        3. **API Documentation**: Endpoints, functions, and their parameters
-        4. **Configuration**: Environment variables, config files, and deployment settings
-        5. **Dependencies**: External libraries and their purposes
-        6. **Usage Examples**: How to use the system/components
-        7. **Development Guide**: How to contribute, build, test, and deploy
+        1. **🏗️ Architecture Overview**: Infrastructure architecture, components, and design patterns
+        2. **📋 Component Analysis**: Individual infrastructure components, their responsibilities, and interactions
+        3. **⚙️ Configuration**: Environment variables, config files, deployment settings, and parameters
+        4. **🔗 Dependencies**: External services, tools, and their purposes
+        5. **🚀 Deployment Guide**: How to deploy, configure, and manage the infrastructure
+        6. **📊 Monitoring & Logging**: Observability setup and best practices
+        7. **🔒 Security**: Security configurations, best practices, and compliance
+        8. **🛠️ Development Guide**: How to contribute, test, and maintain the infrastructure
+        9. **📖 Usage Examples**: Common use cases and operational procedures
+        10. **🔧 Troubleshooting**: Common issues and their solutions
         
-        Generate the documentation in Markdown format with clear sections and subsections.
-        Make it comprehensive but accessible to developers of all levels.
+        Generate the documentation in Markdown format with:
+        - Clear sections and subsections with emojis
+        - Code examples where relevant
+        - Diagrams descriptions where applicable
+        - Best practices and recommendations
+        - Step-by-step guides
+        
+        Make it comprehensive but accessible to both infrastructure engineers and developers.
         
         Codebase to analyze:
         {context[:50000]}  # Limit context size
