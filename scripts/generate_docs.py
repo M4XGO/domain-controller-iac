@@ -12,13 +12,23 @@ import base64
 
 class DocumentationGenerator:
     def __init__(self):
-        self.anthropic_client = anthropic.Anthropic(
-            api_key=os.getenv('ANTHROPIC_API_KEY')
-        ) if os.getenv('ANTHROPIC_API_KEY') else None
+        # Initialize Anthropic client
+        try:
+            self.anthropic_client = anthropic.Anthropic(
+                api_key=os.getenv('ANTHROPIC_API_KEY')
+            ) if os.getenv('ANTHROPIC_API_KEY') else None
+        except Exception as e:
+            print(f"Warning: Failed to initialize Anthropic client: {e}")
+            self.anthropic_client = None
         
-        self.openai_client = openai.OpenAI(
-            api_key=os.getenv('OPENAI_API_KEY')
-        ) if os.getenv('OPENAI_API_KEY') else None
+        # Initialize OpenAI client
+        try:
+            self.openai_client = openai.OpenAI(
+                api_key=os.getenv('OPENAI_API_KEY')
+            ) if os.getenv('OPENAI_API_KEY') else None
+        except Exception as e:
+            print(f"Warning: Failed to initialize OpenAI client: {e}")
+            self.openai_client = None
         
         self.confluence_base_url = os.getenv('CONFLUENCE_BASE_URL')
         self.confluence_username = os.getenv('CONFLUENCE_USERNAME')
@@ -49,6 +59,57 @@ class DocumentationGenerator:
                     print(f"Error reading {file_path}: {e}")
         
         return files_data
+
+    def generate_basic_documentation(self, files_data: Dict[str, Any]) -> str:
+        """Generate basic documentation without LLM when API is not available"""
+        doc = "# Project Documentation\n\n"
+        doc += "*Note: This documentation was generated without LLM analysis due to API configuration issues.*\n\n"
+        
+        # Overview
+        doc += "## Overview\n\n"
+        doc += f"This project contains {len(files_data)} files across various technologies.\n\n"
+        
+        # File structure
+        doc += "## File Structure\n\n"
+        extensions = {}
+        for file_path, file_info in files_data.items():
+            ext = file_info['extension']
+            if ext not in extensions:
+                extensions[ext] = []
+            extensions[ext].append(file_path)
+        
+        for ext, files in extensions.items():
+            doc += f"### {ext.upper()} Files\n"
+            for file_path in sorted(files):
+                doc += f"- `{file_path}`\n"
+            doc += "\n"
+        
+        # Configuration files
+        config_files = [f for f in files_data.keys() if any(cfg in f.lower() for cfg in ['config', 'settings', '.env', 'makefile', 'requirements'])]
+        if config_files:
+            doc += "## Configuration Files\n\n"
+            for config_file in config_files:
+                doc += f"- `{config_file}`\n"
+            doc += "\n"
+        
+        # Scripts
+        script_files = [f for f in files_data.keys() if f.startswith('scripts/')]
+        if script_files:
+            doc += "## Scripts\n\n"
+            for script_file in script_files:
+                doc += f"- `{script_file}`\n"
+            doc += "\n"
+        
+        doc += "## Setup Instructions\n\n"
+        doc += "1. Clone the repository\n"
+        doc += "2. Install dependencies as specified in configuration files\n"
+        doc += "3. Configure environment variables as needed\n"
+        doc += "4. Run the application or scripts as appropriate\n\n"
+        
+        doc += "---\n"
+        doc += "*For more detailed documentation, please configure API keys for LLM analysis.*\n"
+        
+        return doc
 
     def analyze_with_llm(self, files_data: Dict[str, Any]) -> str:
         """Analyze code using LLM and generate documentation"""
@@ -93,9 +154,14 @@ class DocumentationGenerator:
                 )
                 return response.choices[0].message.content
             else:
-                return "Error: No LLM API key configured"
+                # Generate basic documentation without LLM if no client is available
+                basic_docs = self.generate_basic_documentation(files_data)
+                return basic_docs
         except Exception as e:
-            return f"Error generating documentation: {str(e)}"
+            print(f"Error with LLM analysis: {str(e)}")
+            # Fallback to basic documentation
+            basic_docs = self.generate_basic_documentation(files_data)
+            return basic_docs
 
     def convert_to_confluence_format(self, markdown_content: str) -> str:
         """Convert Markdown to Confluence storage format"""
