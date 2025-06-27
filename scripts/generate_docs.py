@@ -206,7 +206,38 @@ class DocumentationGenerator:
         print(f"Space key: {self.confluence_space}")
         print(f"Page title: {title}")
         
+        # Test basic connectivity first
+        test_url = f"{base_url}/rest/api/space"
         auth = (self.confluence_username, self.confluence_token)
+        
+        print("🔍 Testing basic Confluence connectivity...")
+        try:
+            test_response = requests.get(test_url, auth=auth, timeout=30)
+            print(f"Basic connectivity test: {test_response.status_code}")
+            if test_response.status_code != 200:
+                print(f"❌ Cannot connect to Confluence API. Response: {test_response.text[:500]}")
+                return False
+            else:
+                print("✅ Basic Confluence API connectivity successful")
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Network error testing Confluence: {e}")
+            return False
+        
+        # Test if space exists
+        print(f"🔍 Testing if space '{self.confluence_space}' exists...")
+        space_test_url = f"{base_url}/rest/api/space/{self.confluence_space}"
+        try:
+            space_response = requests.get(space_test_url, auth=auth, timeout=30)
+            if space_response.status_code == 200:
+                print("✅ Space exists and is accessible")
+            elif space_response.status_code == 404:
+                print(f"❌ Space '{self.confluence_space}' does not exist or is not accessible")
+                print("💡 Check your space key configuration")
+                return False
+            else:
+                print(f"⚠️ Space test returned: {space_response.status_code}")
+        except requests.exceptions.RequestException as e:
+            print(f"⚠️ Error testing space: {e}")
         
         try:
             search_response = requests.get(search_url, params=search_params, auth=auth, timeout=30)
