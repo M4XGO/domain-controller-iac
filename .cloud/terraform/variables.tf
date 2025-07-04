@@ -127,4 +127,36 @@ variable "mysql_root_password" {
   type        = string
   sensitive   = true
   default     = "MySQLRoot2024!"
+}
+
+# Windows Client Configuration
+variable "enable_windows_client" {
+  description = "Enable Windows client for domain testing"
+  type        = bool
+  default     = true
+}
+
+variable "client_instance_type" {
+  description = "Instance type for Windows client (Free Tier: t2.micro)"
+  type        = string
+  default     = "t2.micro"
+}
+
+variable "client_name" {
+  description = "Name of the Windows client machine"
+  type        = string
+  default     = "client1"
+}
+
+variable "client_admin_password" {
+  description = "Local administrator password for Windows client"
+  type        = string
+  sensitive   = true
+  default     = "ClientAdmin2024!"
+}
+
+variable "enable_security_testing" {
+  description = "Enable security testing configurations (less secure)"
+  type        = bool
+  default     = true
 } 

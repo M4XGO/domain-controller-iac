@@ -153,6 +153,57 @@ module "domain_controller" {
   }
 }
 
+# Windows Client for Security Testing (Optional)
+module "windows_client" {
+  count  = var.enable_windows_client ? 1 : 0
+  source = "./modules/windows-client"
+
+  # Basic configuration
+  project_name = var.project_name
+  environment  = "main"
+  client_name  = var.client_name
+
+  # Instance configuration
+  instance_type = var.client_instance_type
+  key_name      = aws_key_pair.main.key_name
+
+  # Network
+  vpc_id                  = aws_vpc.main.id
+  subnet_id               = aws_subnet.public.id
+  vpc_cidr                = var.vpc_cidr
+  associate_public_ip     = true
+  allowed_cidr_blocks     = ["0.0.0.0/0"]  # École seulement!
+
+  # Storage
+  volume_type      = var.volume_type
+  root_volume_size = var.root_volume_size
+
+  # Domain configuration
+  domain_name             = var.domain_name
+  domain_controller_ip    = module.domain_controller.private_ip
+  domain_admin_username   = var.admin_username
+  domain_admin_password   = var.admin_password
+  local_admin_password    = var.client_admin_password
+
+  # Zabbix configuration
+  zabbix_server_ip     = var.enable_zabbix ? module.zabbix_server[0].private_ip : ""
+  enable_zabbix_agent  = var.enable_zabbix
+
+  # Security testing
+  enable_security_testing = var.enable_security_testing
+
+  common_tags = {
+    Project = var.project_name
+    Purpose = "school-project"
+  }
+
+  # Dependencies
+  depends_on = [
+    module.domain_controller,
+    module.zabbix_server
+  ]
+}
+
 # Zabbix Monitoring Server (Optional)
 module "zabbix_server" {
   count  = var.enable_zabbix ? 1 : 0
