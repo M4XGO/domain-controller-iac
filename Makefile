@@ -53,7 +53,7 @@ plan: check-tools
 deploy: check-tools
 	@echo "$(GREEN)🚀 Deploying infrastructure...$(RESET)"
 	@echo "$(YELLOW)🏗️  Deploying with Terraform...$(RESET)"
-	cd $(TF_DIR) && terraform apply -var-file="../$(CONFIG_DIR)/variables/terraform.tfvars" -auto-approve
+	cd $(TF_DIR) && terraform apply -var-file="../../$(CONFIG_DIR)/variables/terraform.tfvars" -auto-approve
 	@echo "$(GREEN)✅ Infrastructure deployed!$(RESET)"
 	@echo "$(BLUE)📋 Connection Info:$(RESET)"
 	@cd $(TF_DIR) && terraform output
@@ -63,7 +63,7 @@ destroy: check-tools
 	@echo "$(RED)💥 WARNING: This will destroy ALL infrastructure!$(RESET)"
 	@read -p "Are you sure? Type 'yes' to continue: " confirm && [ "$$confirm" = "yes" ] || exit 1
 	@echo "$(YELLOW)🗑️  Destroying infrastructure...$(RESET)"
-	cd $(TF_DIR) && terraform destroy -var-file="../$(CONFIG_DIR)/variables/terraform.tfvars" -auto-approve
+	cd $(TF_DIR) && terraform destroy -var-file="../../$(CONFIG_DIR)/variables/terraform.tfvars" -auto-approve
 	@echo "$(RED)✅ Infrastructure destroyed!$(RESET)"
 
 ## Clean temporary files

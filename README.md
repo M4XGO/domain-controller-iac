@@ -134,7 +134,7 @@ graph TB
 ### ☁️ **AWS**
 - Compte AWS avec Free Tier
 - Clés d'accès (Access Key + Secret Key)
-- Région `us-east-1` recommandée
+- Région `us-east-1` recommandée pour le free tier
 
 ### 🔑 **Permissions AWS minimales**
 ```json

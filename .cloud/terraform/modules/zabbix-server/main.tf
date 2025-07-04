@@ -1,9 +1,9 @@
 # Zabbix Server Module
 # Ubuntu-based monitoring server for Free Tier
 
-# Ubuntu 22.04 LTS AMI for us-east-1 (hardcoded for school project)
+# Ubuntu 22.04 LTS AMI for us-east-1 (known working ID)
 locals {
-  ubuntu_ami_id = "ami-0e86e20dae90224d1" # Ubuntu 22.04 LTS
+  ubuntu_ami_id = "ami-0866a3c8686eaeeba" # Ubuntu 22.04 LTS in us-east-1
 }
 
 # Security Group for Zabbix Server

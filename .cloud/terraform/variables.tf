@@ -66,7 +66,7 @@ variable "volume_type" {
 variable "root_volume_size" {
   description = "Size of root volume in GB (Free Tier: max 30GB)"
   type        = number
-  default     = 25
+  default     = 30
 }
 
 # Domain Configuration
