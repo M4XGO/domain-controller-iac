@@ -17,7 +17,9 @@ terraform {
 
 # Provider configuration
 provider "aws" {
-  region = var.aws_region
+  region     = var.aws_region
+  access_key = var.aws_access_key != "" ? var.aws_access_key : null
+  secret_key = var.aws_secret_key != "" ? var.aws_secret_key : null
 
   default_tags {
     tags = {
@@ -85,77 +87,7 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# Security Group for Domain Controller
-resource "aws_security_group" "domain_controller" {
-  name_prefix = "${var.project_name}-dc-"
-  vpc_id      = aws_vpc.main.id
-  description = "Security group for Domain Controller"
-
-  # RDP access
-  ingress {
-    description = "RDP"
-    from_port   = 3389
-    to_port     = 3389
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # ATTENTION: Pour école seulement!
-  }
-
-  # WinRM HTTPS (for management)
-  ingress {
-    description = "WinRM HTTPS"
-    from_port   = 5986
-    to_port     = 5986
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  # DNS (ouvert pour clients locaux)
-  ingress {
-    description = "DNS TCP"
-    from_port   = 53
-    to_port     = 53
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Pour clients locaux
-  }
-
-  ingress {
-    description = "DNS UDP"
-    from_port   = 53
-    to_port     = 53
-    protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"]  # Pour clients locaux
-  }
-
-  # Active Directory basics
-  ingress {
-    description = "LDAP"
-    from_port   = 389
-    to_port     = 389
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "Kerberos"
-    from_port   = 88
-    to_port     = 88
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  # Outbound traffic
-  egress {
-    description = "All outbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "${var.project_name}-dc-sg"
-  }
-}
+# Security Group is now managed by the module
 
 # Key Pair
 resource "tls_private_key" "main" {
@@ -175,13 +107,13 @@ resource "aws_key_pair" "main" {
 # Save private key
 resource "local_file" "private_key" {
   content         = tls_private_key.main.private_key_pem
-  filename        = "../.config/keys/${var.project_name}-key.pem"
+  filename        = "../../.config/keys/${var.project_name}-key.pem"
   file_permission = "0600"
 }
 
 # Domain Controller Instance (FREE TIER)
 module "domain_controller" {
-  source = "../.infra/modules/aws-ec2-windows"
+  source = "./modules/aws-ec2-windows"
 
   # Basic configuration
   project_name = var.project_name
@@ -218,5 +150,40 @@ module "domain_controller" {
   common_tags = {
     Project = var.project_name
     Purpose = "school-project"
+  }
+}
+
+# Zabbix Monitoring Server (Optional)
+module "zabbix_server" {
+  count  = var.enable_zabbix ? 1 : 0
+  source = "./modules/zabbix-server"
+
+  # Basic configuration
+  project_name = var.project_name
+  environment  = "main"
+
+  # Instance configuration
+  instance_type = var.zabbix_instance_type
+  key_name      = aws_key_pair.main.key_name
+
+  # Network
+  vpc_id                  = aws_vpc.main.id
+  subnet_id               = aws_subnet.public.id
+  vpc_cidr                = var.vpc_cidr
+  associate_public_ip     = true
+  allowed_cidr_blocks     = ["0.0.0.0/0"]  # École seulement!
+
+  # Storage
+  volume_type      = var.volume_type
+  root_volume_size = 20  # 20GB for Zabbix (Free Tier)
+
+  # Zabbix config
+  zabbix_admin_password = var.zabbix_admin_password
+  mysql_root_password   = var.mysql_root_password
+
+  common_tags = {
+    Project = var.project_name
+    Purpose = "school-project"
+    Service = "monitoring"
   }
 } 

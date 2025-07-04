@@ -48,7 +48,7 @@ output "connection_info" {
 # Key Information
 output "ssh_key_location" {
   description = "Location of the SSH private key"
-  value       = "../.config/keys/${var.project_name}-key.pem"
+  value       = "../../.config/keys/${var.project_name}-key.pem"
 }
 
 # Simple Summary
@@ -59,6 +59,32 @@ output "summary" {
     instance_type     = var.instance_type
     cost_per_month    = "~$0.00 (Free Tier)"
     domain_controller = module.domain_controller.public_ip
+    zabbix_server     = var.enable_zabbix ? module.zabbix_server[0].public_ip : "disabled"
     ready_to_use      = "Connect via RDP and join your computers to ${var.domain_name}"
   }
+}
+
+# Zabbix Outputs (when enabled)
+output "zabbix_public_ip" {
+  description = "Public IP of Zabbix Server"
+  value       = var.enable_zabbix ? module.zabbix_server[0].public_ip : null
+}
+
+output "zabbix_private_ip" {
+  description = "Private IP of Zabbix Server"
+  value       = var.enable_zabbix ? module.zabbix_server[0].private_ip : null
+}
+
+output "zabbix_web_url" {
+  description = "Zabbix web interface URL"
+  value       = var.enable_zabbix ? module.zabbix_server[0].web_url : null
+}
+
+output "zabbix_info" {
+  description = "Zabbix connection information"
+  value = var.enable_zabbix ? {
+    web_interface = module.zabbix_server[0].web_url
+    default_login = "Admin / zabbix (CHANGE THIS!)"
+    ssh_access    = "ssh -i ../../.config/keys/${var.project_name}-key.pem ubuntu@${module.zabbix_server[0].public_ip}"
+  } : null
 } 

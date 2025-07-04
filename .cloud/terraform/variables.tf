@@ -15,6 +15,21 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+# AWS Credentials (optional - for project isolation)
+variable "aws_access_key" {
+  description = "AWS Access Key ID (optional, leave empty to use default profile)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_secret_key" {
+  description = "AWS Secret Access Key (optional, leave empty to use default profile)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # Network Configuration
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
@@ -85,4 +100,31 @@ variable "safe_mode_password" {
   type        = string
   sensitive   = true
   default     = "SafeMode2024!"
+}
+
+# Zabbix Configuration
+variable "enable_zabbix" {
+  description = "Enable Zabbix monitoring server"
+  type        = bool
+  default     = true
+}
+
+variable "zabbix_instance_type" {
+  description = "EC2 instance type for Zabbix (Free Tier: t2.micro)"
+  type        = string
+  default     = "t2.micro"
+}
+
+variable "zabbix_admin_password" {
+  description = "Zabbix admin password"
+  type        = string
+  sensitive   = true
+  default     = "ZabbixAdmin2024!"
+}
+
+variable "mysql_root_password" {
+  description = "MySQL root password for Zabbix"
+  type        = string
+  sensitive   = true
+  default     = "MySQLRoot2024!"
 } 
