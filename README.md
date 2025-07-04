@@ -46,7 +46,7 @@ graph TB
         subgraph "📡 Public Subnet (10.0.1.0/24)"
             DC[🏢 Domain Controller<br/><b>dc1.school.local</b><br/>Windows Server 2022<br/>AD DS + DNS + DHCP]
             ZAB[📊 Zabbix Server<br/><b>zabbix.local</b><br/>Ubuntu 22.04<br/>MySQL + Apache]
-            CLIENT[💻 Windows Client<br/><b>client1.school.local</b><br/>Windows Server 2022<br/>Joint au domaine]
+            CLIENT[💻 Windows Workstation<br/><b>client1.school.local</b><br/>Server 2022 (config client)<br/>Joint au domaine]
         end
         
         subgraph "🔐 Security Groups"
@@ -81,7 +81,7 @@ graph TB
 |-----------|------|------|-----------|---------------|
 | **Domain Controller** | EC2 t2.micro | AD DS, DNS, DHCP | `10.0.1.10` | 3389, 53, 389, 636 |
 | **Zabbix Server** | EC2 t2.micro | Monitoring | `10.0.1.20` | 80, 443, 22, 10051 |
-| **Windows Client** | EC2 t2.micro | Cible de test | `10.0.1.30` | 3389, 445, 139, 137-138 |
+| **Windows Client** | EC2 t2.micro | Poste de travail | `10.0.1.30` | 3389, 445, 139, 137-138 |
 
 ---
 
@@ -110,10 +110,13 @@ graph TB
   - Métriques système et sécurité
   - Alertes en temps réel
 
-### 💻 **Client Windows**
-- **OS :** Windows Server 2022
+### 💻 **Client Windows (Poste de travail)**
+- **OS :** Windows Server 2022 (configuré comme poste de travail client)
+- **Note :** AWS Free Tier ne propose pas Windows 10/11 - utilisation de Server 2022 configuré comme client
 - **Configuration :**
-  - Joint au domaine `school.local`
+  - Joint au domaine `school.local`  
+  - Services serveur désactivés
+  - Interface utilisateur client
   - Agent Zabbix installé
   - **Configuration vulnérable** pour tests :
     - LLMNR activé

@@ -93,12 +93,20 @@ resource "aws_security_group" "domain_controller" {
 
 # User data script for Windows domain controller setup
 locals {
-  user_data = base64encode(templatefile("${path.module}/userdata.ps1", {
+  user_data = base64encode(<<-EOF
+<powershell>
+# Set execution policy to allow scripts
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope LocalMachine -Force
+
+${templatefile("${path.module}/userdata.ps1", {
     domain_name         = var.domain_name
     domain_netbios_name = var.domain_netbios_name
     admin_password      = var.admin_password
     safe_mode_password  = var.safe_mode_password
-  }))
+  })}
+</powershell>
+EOF
+  )
 }
 
 # EC2 Instance
@@ -125,7 +133,7 @@ resource "aws_instance" "domain_controller" {
   user_data = local.user_data
 
   tags = merge(var.common_tags, {
-    Name = "${var.project_name}-domain-controller"
+    Name = "${var.project_name}-dc"
     Type = "Domain Controller"
   })
 

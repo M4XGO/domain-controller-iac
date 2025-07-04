@@ -1,7 +1,8 @@
 # Windows Client Module for Domain Join and Monitoring
 # Configured for security testing scenarios
 
-# Use same Windows AMI as Domain Controller
+# Windows Server 2022 Full AMI configured as client workstation (Free Tier)  
+# Note: AWS Free Tier doesn't include Windows 10/11 - using Server 2022 configured as client
 data "aws_ami" "windows_client" {
   most_recent = true
   owners      = ["amazon"]
@@ -126,7 +127,12 @@ resource "aws_security_group" "windows_client" {
 
 # User data script for client configuration
 locals {
-  user_data = base64encode(templatefile("${path.module}/userdata.ps1", {
+  user_data = base64encode(<<-EOF
+<powershell>
+# Set execution policy to allow scripts
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope LocalMachine -Force
+
+${templatefile("${path.module}/userdata.ps1", {
     domain_name             = var.domain_name
     domain_controller_ip    = var.domain_controller_ip
     domain_admin_username   = var.domain_admin_username
@@ -136,7 +142,10 @@ locals {
     zabbix_server_ip       = var.zabbix_server_ip
     enable_zabbix_agent    = var.enable_zabbix_agent
     enable_security_testing = var.enable_security_testing
-  }))
+  })}
+</powershell>
+EOF
+  )
 }
 
 # EC2 Instance for Windows Client
@@ -164,8 +173,9 @@ resource "aws_instance" "windows_client" {
 
   tags = merge(var.common_tags, {
     Name = "${var.project_name}-${var.client_name}"
-    Type = "Domain Client"
+    Type = "Windows Client Workstation"
     Role = "Security Testing"
+    OS   = "Windows Server 2022 (configured as client)"
   })
 
   lifecycle {

@@ -1,12 +1,31 @@
 # PowerShell Script for Windows Client Configuration
 # Domain join, Zabbix agent, and security testing setup
 
-# Log function
+# Log function with enhanced debugging
 function Write-Log {
     param([string]$Message)
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-Output "[$timestamp] $Message"
     Add-Content -Path "C:\client-setup.log" -Value "[$timestamp] $Message"
+    # Also log to console for userdata debugging
+    Write-Host "[$timestamp] $Message" -ForegroundColor Cyan
+}
+
+# Create debug information
+Write-Log "=== CLIENT USERDATA SCRIPT STARTED ==="
+Write-Log "PowerShell Version: $($PSVersionTable.PSVersion)"
+Write-Log "Execution Policy: $(Get-ExecutionPolicy)"
+Write-Log "Current User: $env:USERNAME"
+Write-Log "Computer Name: $env:COMPUTERNAME"
+Write-Log "Script Path: $($MyInvocation.MyCommand.Path)"
+
+# Save a copy of this script for manual execution if needed
+try {
+    $scriptContent = Get-Content $MyInvocation.MyCommand.Path -Raw
+    $scriptContent | Out-File "C:\Windows\Temp\client-userdata-manual.ps1" -Encoding UTF8 -Force
+    Write-Log "Manual execution script saved to C:\Windows\Temp\client-userdata-manual.ps1"
+} catch {
+    Write-Log "Could not save manual script: $($_.Exception.Message)"
 }
 
 Write-Log "Starting Windows Client setup for domain ${domain_name}..."
@@ -53,6 +72,73 @@ try {
     Add-Computer -DomainName "${domain_name}" -Credential $credential -Restart:$false -Force
     
     Write-Log "Domain join completed successfully!"
+    
+    # Configure as Windows Client Workstation
+    Write-Log "Configuring Windows Server as client workstation..."
+    
+    # Disable Server Manager auto-start
+    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\ServerManager" -Name "DoNotOpenServerManagerAtLogon" -Value 1 -Force
+    
+    # Disable unnecessary server services
+    $servicesToDisable = @(
+        "Spooler",          # Print Spooler (unless needed)
+        "IISADMIN",         # IIS Admin (will be enabled later if needed)
+        "W3SVC",            # World Wide Web Publishing
+        "MSMQ",             # Message Queuing
+        "SNMP",             # SNMP Service
+        "RemoteRegistry"    # Remote Registry (security)
+    )
+    
+    foreach ($service in $servicesToDisable) {
+        try {
+            $svc = Get-Service -Name $service -ErrorAction SilentlyContinue
+            if ($svc) {
+                Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
+                Set-Service -Name $service -StartupType Disabled -ErrorAction SilentlyContinue
+                Write-Log "Disabled service: $service"
+            }
+        } catch {
+            Write-Log "Could not disable service $service : $($_.Exception.Message)"
+        }
+    }
+    
+    # Enable client-like services
+    $servicesToEnable = @(
+        "Themes",           # Windows Themes (for better UI)
+        "AudioSrv",         # Windows Audio
+        "AudioEndpointBuilder", # Audio Endpoint Builder
+        "Audiosrv",         # Windows Audio
+        "Browser",          # Computer Browser
+        "Workstation"       # Workstation service
+    )
+    
+    foreach ($service in $servicesToEnable) {
+        try {
+            $svc = Get-Service -Name $service -ErrorAction SilentlyContinue
+            if ($svc) {
+                Set-Service -Name $service -StartupType Automatic -ErrorAction SilentlyContinue
+                Start-Service -Name $service -ErrorAction SilentlyContinue
+                Write-Log "Enabled service: $service"
+            }
+        } catch {
+            Write-Log "Could not enable service $service : $($_.Exception.Message)"
+        }
+    }
+    
+    # Configure Windows to look more like a client
+    # Enable Desktop Experience features
+    Write-Log "Enabling Desktop Experience features..."
+    
+    # Enable Windows Media Player features
+    Enable-WindowsOptionalFeature -Online -FeatureName "MediaPlayback" -All -NoRestart -ErrorAction SilentlyContinue
+    
+    # Configure power settings for workstation use
+    powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e  # Balanced power plan
+    
+    # Set computer description as Client
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\lanmanserver\parameters" -Name "srvcomment" -Value "Windows Client Workstation for Security Testing" -Force
+    
+    Write-Log "Client workstation configuration completed"
     
     # Configure security settings for testing
     %{ if enable_security_testing }

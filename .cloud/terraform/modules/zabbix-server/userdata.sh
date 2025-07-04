@@ -161,4 +161,68 @@ log_message "Default login: Admin / zabbix (PLEASE CHANGE!)"
 # Run health check
 /usr/local/bin/zabbix-health.sh >> /var/log/zabbix-install.log
 
-log_message "Installation script finished. Check /var/log/zabbix-install.log for details." 
+# Copier le script de dépannage
+cat > /usr/local/bin/zabbix-fix.sh << 'FIXEOF'
+#!/bin/bash
+# Zabbix Fix Script - Diagnostic et réparation
+
+echo "=== DIAGNOSTIC ZABBIX ==="
+echo "Date: $(date)"
+
+# Fonction de log
+log_message() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+# Vérifier les services
+log_message "Vérification des services..."
+echo "MySQL: $(systemctl is-active mysql)"
+echo "Apache2: $(systemctl is-active apache2)"
+echo "Zabbix Server: $(systemctl is-active zabbix-server)"
+echo "Zabbix Agent: $(systemctl is-active zabbix-agent)"
+
+# Vérifier les ports
+log_message "Vérification des ports..."
+echo "Port 80 (HTTP): $(ss -tlnp | grep :80 || echo 'FERMÉ')"
+echo "Port 3306 (MySQL): $(ss -tlnp | grep :3306 || echo 'FERMÉ')" 
+echo "Port 10051 (Zabbix): $(ss -tlnp | grep :10051 || echo 'FERMÉ')"
+
+# IP publique et test
+PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+echo "IP Publique: $PUBLIC_IP"
+echo "URL Dashboard: http://$PUBLIC_IP/zabbix"
+
+# Test de connectivité
+log_message "Test de connectivité locale..."
+curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost/zabbix/
+
+# CORRECTION AUTOMATIQUE
+echo ""
+log_message "=== TENTATIVE DE CORRECTION ==="
+
+# Redémarrer les services
+systemctl restart mysql apache2 zabbix-server zabbix-agent
+sleep 5
+
+# Créer un lien symbolique si nécessaire
+if [ ! -L "/var/www/html/zabbix" ] && [ -d "/usr/share/zabbix" ]; then
+    ln -sf /usr/share/zabbix /var/www/html/zabbix
+fi
+
+# Test final
+if curl -s http://localhost/zabbix/ | grep -q "Zabbix"; then
+    echo "✅ Zabbix Dashboard accessible"
+    echo "🌐 Accédez à: http://$PUBLIC_IP/zabbix"
+    echo "👤 Login: Admin / zabbix"
+else
+    echo "❌ Problème persistant"
+fi
+FIXEOF
+
+chmod +x /usr/local/bin/zabbix-fix.sh
+
+# Créer un alias pour faciliter l'utilisation
+echo "alias zabbix-fix='/usr/local/bin/zabbix-fix.sh'" >> /home/ubuntu/.bashrc
+
+log_message "Installation script finished. Check /var/log/zabbix-install.log for details."
+log_message "Script de dépannage disponible: /usr/local/bin/zabbix-fix.sh" 

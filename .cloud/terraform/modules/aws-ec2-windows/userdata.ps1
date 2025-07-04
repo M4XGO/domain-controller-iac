@@ -1,12 +1,31 @@
 # PowerShell Script for Domain Controller Setup
 # Simple configuration for school project with full DNS setup
 
-# Log function
+# Log function with enhanced debugging
 function Write-Log {
     param([string]$Message)
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-Output "[$timestamp] $Message"
     Add-Content -Path "C:\dcsetup.log" -Value "[$timestamp] $Message"
+    # Also log to console for userdata debugging
+    Write-Host "[$timestamp] $Message" -ForegroundColor Green
+}
+
+# Create debug information
+Write-Log "=== USERDATA SCRIPT STARTED ==="
+Write-Log "PowerShell Version: $($PSVersionTable.PSVersion)"
+Write-Log "Execution Policy: $(Get-ExecutionPolicy)"
+Write-Log "Current User: $env:USERNAME"
+Write-Log "Computer Name: $env:COMPUTERNAME"
+Write-Log "Script Path: $($MyInvocation.MyCommand.Path)"
+
+# Save a copy of this script for manual execution if needed
+try {
+    $scriptContent = Get-Content $MyInvocation.MyCommand.Path -Raw
+    $scriptContent | Out-File "C:\Windows\Temp\dc-userdata-manual.ps1" -Encoding UTF8 -Force
+    Write-Log "Manual execution script saved to C:\Windows\Temp\dc-userdata-manual.ps1"
+} catch {
+    Write-Log "Could not save manual script: $($_.Exception.Message)"
 }
 
 # Start setup
